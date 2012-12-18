@@ -141,6 +141,7 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
 @synthesize progressHUD = _progressHUD;
 @synthesize previousViewControllerBackButton = _previousViewControllerBackButton;
 @synthesize actionButtons = _actionButtons;
+@synthesize currentPageIndex = _currentPageIndex;
 
 #pragma mark - NSObject
 
