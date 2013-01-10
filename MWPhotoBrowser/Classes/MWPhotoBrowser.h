@@ -27,13 +27,14 @@
 @optional
 - (void) photoBrowser:(MWPhotoBrowser *)photoBrowser actionIndex:(NSUInteger)index;
 - (MWCaptionView *)photoBrowser:(MWPhotoBrowser *)photoBrowser captionViewForPhotoAtIndex:(NSUInteger)index;
+- (BOOL)photoBrowser:(MWPhotoBrowser *)photoBrowser wantsDeletionAtIndex:(NSUInteger)index;
 @end
 
 // MWPhotoBrowser
 @interface MWPhotoBrowser : UIViewController <UIScrollViewDelegate, UIActionSheetDelegate, MFMailComposeViewControllerDelegate> 
 
 // Properties
-@property (nonatomic) BOOL displayActionButton;
+@property (nonatomic) BOOL displayActionButton, displayDeleteButton;
 @property (nonatomic, retain) NSMutableArray *actionButtons;
 @property (nonatomic) NSUInteger currentPageIndex;
 

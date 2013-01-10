@@ -1,11 +1,11 @@
 Pod::Spec.new do |s|
   s.name     = 'MWPhotoBrowser'
-  s.version  = '1.0.4'
+  s.version  = '1.0.5'
   s.license  = 'MIT'
   s.summary  = 'A simple iOS photo browser.'
   s.homepage = 'https://github.com/mwaterfall/MWPhotoBrowser'
   s.author   = { 'Michael Waterfall' => 'mw@d3i.com' }
-  s.source   = { :git => 'https://github.com/doPanic/MWPhotoBrowser.git', :tag => '1.0.4'}
+  s.source   = { :git => 'https://github.com/doPanic/MWPhotoBrowser.git', :tag => '1.0.5'}
   s.platform = :ios
   
   s.source_files = 'MWPhotoBrowser/Classes'

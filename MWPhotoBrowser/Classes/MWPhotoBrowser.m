@@ -43,7 +43,8 @@
 	// Navigation & controls
 	UIToolbar *_toolbar;
 	NSTimer *_controlVisibilityTimer;
-	UIBarButtonItem *_previousButton, *_nextButton, *_actionButton;
+	UIBarButtonItem *_actionButton;
+    UIBarButtonItem *_deleteButton;
     UIActionSheet *_actionsSheet;
     MBProgressHUD *_progressHUD;
     
@@ -57,6 +58,7 @@
     
     // Misc
     BOOL _displayActionButton;
+     BOOL _displayDeleteButton;
 	BOOL _performingLayout;
 	BOOL _rotating;
     BOOL _viewIsActive; // active as in it's in the view heirarchy
@@ -101,8 +103,6 @@
 // Navigation
 - (void)updateNavigation;
 - (void)jumpToPageAtIndex:(NSUInteger)index;
-- (void)gotoPreviousPage;
-- (void)gotoNextPage;
 
 // Controls
 - (void)cancelControlHiding;
@@ -137,7 +137,7 @@
 @synthesize previousNavBarTintColor = _previousNavBarTintColor;
 @synthesize navigationBarBackgroundImageDefault = _navigationBarBackgroundImageDefault,
 navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandscapePhone;
-@synthesize displayActionButton = _displayActionButton, actionsSheet = _actionsSheet;
+@synthesize displayActionButton = _displayActionButton, displayDeleteButton = _displayDeleteButton, actionsSheet = _actionsSheet;
 @synthesize progressHUD = _progressHUD;
 @synthesize previousViewControllerBackButton = _previousViewControllerBackButton;
 @synthesize actionButtons = _actionButtons;
@@ -160,6 +160,7 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
         _recycledPages = [[NSMutableSet alloc] init];
         _photos = [[NSMutableArray alloc] init];
         _displayActionButton = NO;
+        _displayDeleteButton = NO;
         _didSavePreviousStateOfNavBar = NO;
         _actionButtons = [NSMutableArray new];
         
@@ -196,9 +197,8 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
 	[_visiblePages release];
 	[_recycledPages release];
 	[_toolbar release];
-	[_previousButton release];
-	[_nextButton release];
     [_actionButton release];
+    [_deleteButton release];
   	[_depreciatedPhotoData release];
     [self releaseAllUnderlyingPhotos];
     [[SDImageCache sharedImageCache] clearMemory]; // clear memory
@@ -253,9 +253,8 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
     _toolbar.autoresizingMask = UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleWidth;
     
     // Toolbar Items
-    _previousButton = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"MWPhotoBrowser.bundle/images/UIBarButtonItemArrowLeft.png"] style:UIBarButtonItemStylePlain target:self action:@selector(gotoPreviousPage)];
-    _nextButton = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"MWPhotoBrowser.bundle/images/UIBarButtonItemArrowRight.png"] style:UIBarButtonItemStylePlain target:self action:@selector(gotoNextPage)];
     _actionButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAction target:self action:@selector(actionButtonPressed:)];
+    _deleteButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemTrash target:self action:@selector(deleteButtonPressed:)];
     
     // Update
     [self reloadData];
@@ -276,22 +275,16 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
     [_recycledPages removeAllObjects];
     
     // Toolbar
-    if (numberOfPhotos > 1 || _displayActionButton) {
+    if (numberOfPhotos > 1 || _displayActionButton || _displayDeleteButton) {
         [self.view addSubview:_toolbar];
     } else {
         [_toolbar removeFromSuperview];
     }
     
     // Toolbar items & navigation
-    UIBarButtonItem *fixedLeftSpace = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:self action:nil] autorelease];
-    fixedLeftSpace.width = 32; // To balance action button
     UIBarButtonItem *flexSpace = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:self action:nil] autorelease];
     NSMutableArray *items = [[NSMutableArray alloc] init];
-    if (_displayActionButton) [items addObject:fixedLeftSpace];
-    [items addObject:flexSpace];
-    if (numberOfPhotos > 1) [items addObject:_previousButton];
-    [items addObject:flexSpace];
-    if (numberOfPhotos > 1) [items addObject:_nextButton];
+    if (_displayDeleteButton) [items addObject:_deleteButton];
     [items addObject:flexSpace];
     if (_displayActionButton) [items addObject:_actionButton];
     [_toolbar setItems:items];
@@ -344,8 +337,6 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
     [_visiblePages release], _visiblePages = nil;
     [_recycledPages release], _recycledPages = nil;
     [_toolbar release], _toolbar = nil;
-    [_previousButton release], _previousButton = nil;
-    [_nextButton release], _nextButton = nil;
     self.progressHUD = nil;
     [super viewDidUnload];
 }
@@ -487,7 +478,7 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
 	[self didStartViewingPageAtIndex:_currentPageIndex]; // initial
     
 	// Reset
-	_currentPageIndex = indexPriorToLayout;
+	[self setInitialPageIndex:indexPriorToLayout];
 	_performingLayout = NO;
     
 }
@@ -742,6 +733,9 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
 // Handle page changes
 - (void)didStartViewingPageAtIndex:(NSUInteger)index {
     
+    if([self numberOfPhotos] <= 0)
+        return;
+    
     // Release images further away than +/-1
     NSUInteger i;
     if (index > 0) {
@@ -869,10 +863,6 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
 		self.title = nil;
 	}
 	
-	// Buttons
-	_previousButton.enabled = (_currentPageIndex > 0);
-	_nextButton.enabled = (_currentPageIndex < [self numberOfPhotos]-1);
-	
 }
 
 - (void)jumpToPageAtIndex:(NSUInteger)index {
@@ -889,8 +879,6 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
 	
 }
 
-- (void)gotoPreviousPage { [self jumpToPageAtIndex:_currentPageIndex-1]; }
-- (void)gotoNextPage { [self jumpToPageAtIndex:_currentPageIndex+1]; }
 
 #pragma mark - Control Hiding / Showing
 
@@ -965,10 +953,10 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
 
 // Enable/disable control visiblity timer
 - (void)hideControlsAfterDelay {
-	if (![self areControlsHidden]) {
-        [self cancelControlHiding];
-		_controlVisibilityTimer = [[NSTimer scheduledTimerWithTimeInterval:5 target:self selector:@selector(hideControls) userInfo:nil repeats:NO] retain];
-	}
+//	if (![self areControlsHidden]) {
+//        [self cancelControlHiding];
+//		_controlVisibilityTimer = [[NSTimer scheduledTimerWithTimeInterval:5 target:self selector:@selector(hideControls) userInfo:nil repeats:NO] retain];
+//	}
 }
 
 - (BOOL)areControlsHidden { return (_toolbar.alpha == 0); /* [UIApplication sharedApplication].isStatusBarHidden; */ }
@@ -991,6 +979,18 @@ navigationBarBackgroundImageLandscapePhone = _navigationBarBackgroundImageLandsc
 
 - (void)doneButtonPressed:(id)sender {
     [self dismissModalViewControllerAnimated:YES];
+}
+
+- (void)deleteButtonPressed:(id)sender {
+    id <MWPhoto> photo = [self photoAtIndex:_currentPageIndex];
+    if ([self numberOfPhotos] > 0 && [photo underlyingImage]) {
+        
+        if ([_delegate respondsToSelector:@selector(photoBrowser:wantsDeletionAtIndex:)]) {
+             [_delegate photoBrowser:self wantsDeletionAtIndex:_currentPageIndex];
+        }
+        
+    }
+
 }
 
 - (void)actionButtonPressed:(id)sender {
